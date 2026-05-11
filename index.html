@@ -9,14 +9,13 @@
     <style>
         :root {
             --white: #ffffff;
-            --yellow: #FFF574; /* 기획안의 화사한 노란색 */
-            --teal: #0BCBCE;   /* 기획안의 스타트 버튼 민트색 */
+            --yellow: #FFF574;
+            --teal: #0BCBCE;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: var(--white); overflow: hidden; font-family: 'Space Mono', monospace; }
 
-        /* 인트로 전체 컨테이너 */
         #intro {
             position: fixed;
             inset: 0;
@@ -27,14 +26,12 @@
             justify-content: center;
         }
 
-        /* 픽셀 입자가 그려질 캔버스 */
         #px-canvas {
             position: absolute;
             inset: 0;
             pointer-events: none;
         }
 
-        /* 화면 전체를 유기적으로 떠다닐 스타트 버튼 */
         #start-btn {
             position: absolute;
             z-index: 10;
