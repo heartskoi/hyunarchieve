@@ -10,7 +10,7 @@
         :root {
             --white: #ffffff;
             --yellow: #FFF574; /* 기획안의 화사한 노란색 */
-            --teal: #0BCBCE;   /* 기획안의 스타트 버튼 민트색 */
+            --balck: #000000;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -40,9 +40,9 @@
             z-index: 10;
             background: none;
             border: none;
-            color: var(--teal);
+            color: var(--black);
             font-family: 'Press Start 2P', cursive;
-            font-size: 14px;
+            font-size: 16px;
             letter-spacing: .1em;
             padding: 15px 25px;
             cursor: pointer;
@@ -60,9 +60,8 @@
         #start-btn.show { opacity: 1; }
         #start-btn.gone { opacity: 0 !important; pointer-events: none; }
         
-        /* ⚠️ 마우스 올렸을 때(Hover) 효과 완전 제거 */
         #start-btn:hover {
-            color: var(--teal);
+            color: var(--black);
             text-shadow: none;
             background: none;
         }
