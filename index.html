@@ -1,11 +1,728 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <title>첫 시작의 아카이브</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE OPENING — Archive</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+KR:wght@300;400;500&display=swap');
+
+:root {
+  --yellow: #F0E234;
+  --green:  #1C3C1C;
+  --pink:   #EFA89E;
+  --pink2:  #D4726A;
+  --white:  #FAFAF5;
+  --teal:   #0BBFBF;
+  --leaf:   #2C5C2C;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  width:100%; height:100%; overflow:hidden;
+  background: var(--white);
+  font-family: 'Pretendard', monospace;
+  cursor: none;
+}
+
+/* ── CURSOR ── */
+#cursor {
+  position:fixed; z-index:9999;
+  width:10px; height:10px;
+  background: var(--green);
+  pointer-events:none;
+  transform:translate(-50%,-50%);
+  transition: width .1s, height .1s, background .1s;
+}
+body.grabbing #cursor {
+  width:16px; height:16px;
+  background: var(--teal);
+}
+
+/* ════════════════════════════
+   INTRO
+════════════════════════════ */
+#intro {
+  position:fixed; inset:0; z-index:50;
+  background: var(--white);
+  display:flex; align-items:center; justify-content:center;
+}
+#px-canvas { position:absolute; inset:0; pointer-events:none; }
+
+#intro-title {
+  position:relative; z-index:2;
+  font-size: clamp(38px, 8vw, 106px);
+  font-weight:700; color:var(--yellow);
+  letter-spacing:.04em; user-select:none;
+  -webkit-font-smoothing:none;
+}
+
+#start-btn {
+  position:absolute; z-index:10;
+  background:none; border:2px solid var(--teal);
+  color:var(--teal); font-family:'Space Mono',monospace;
+  font-size:13px; letter-spacing:.3em; padding:9px 28px;
+  cursor:none; opacity:0; transition:opacity .5s;
+}
+#start-btn.show { opacity:1; }
+#start-btn.gone { opacity:0!important; pointer-events:none; }
+#start-btn:hover { color:#fff; border-color:#fff; background:rgba(11,191,191,.1); }
+
+/* ════════════════════════════
+   STAGE
+════════════════════════════ */
+#stage {
+  position:fixed; inset:0;
+  background:var(--yellow);
+  opacity:0; pointer-events:none; transition:opacity .8s;
+  overflow:hidden;
+}
+#stage.show { opacity:1; pointer-events:auto; }
+
+#stage-header {
+  position:absolute; top:22px; left:36px; right:36px;
+  display:flex; align-items:baseline; justify-content:space-between;
+  z-index:10; pointer-events:none;
+}
+#stage-header h1 {
+  font-size:clamp(15px,2vw,24px);
+  color:var(--green); letter-spacing:.08em;
+}
+#stage-hint {
+  font-size:10px; letter-spacing:.18em;
+  color:var(--green); opacity:.5; text-transform:uppercase;
+}
+#stage-progress {
+  position:absolute; bottom:20px; left:50%;
+  transform:translateX(-50%);
+  font-size:10px; letter-spacing:.2em;
+  color:var(--green); opacity:.5; z-index:10; pointer-events:none;
+}
+
+/* ── WREATH STAND ── */
+#wreath-wrap {
+  position:absolute;
+  left:50%; top:50%;
+  transform:translate(-50%,-52%);
+  width: min(340px, 44vw);
+  pointer-events:none; user-select:none;
+}
+
+/* ── CARDS LAYER ── */
+#card-layer { position:absolute; inset:0; }
+
+/* ── SNAP DOT ── */
+.snap-dot {
+  position:absolute;
+  width:46px; height:46px;
+  border-radius:4px;
+  border:2px dashed rgba(28,60,28,.3);
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+  transition:border-color .25s;
+}
+.snap-dot.filled { border-color:transparent; }
+.snap-dot.near   { border-color:rgba(28,60,28,.7); }
+
+/* ── ARCHIVE CARD ── */
+.card {
+  position:absolute;
+  width:100px;
+  cursor:none; user-select:none;
+  z-index:20; transform-origin:center center;
+}
+.card.dragging { z-index:200; }
+.card.snapped {
+  z-index:10;
+  transition:left .4s cubic-bezier(.22,1,.36,1),
+             top  .4s cubic-bezier(.22,1,.36,1),
+             transform .4s;
+}
+
+.card-ribbon {
+  width:28px; height:7px;
+  background:var(--pink);
+  margin:0 auto;
+}
+
+.card-img-wrap {
+  width:100%; aspect-ratio:4/3;
+  overflow:hidden;
+  background:#ccc;
+  display:flex; align-items:center; justify-content:center;
+}
+.card-img-wrap img {
+  width:100%; height:100%; object-fit:cover;
+  display:block; pointer-events:none;
+}
+.card-img-wrap .card-placeholder {
+  width:100%; height:100%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:26px; background:#ddd;
+}
+
+.card-text-wrap {
+  width:100%; aspect-ratio:4/3;
+  background:var(--green);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:8px;
+}
+.card-text-quote {
+  font-family:'Noto Sans KR',sans-serif;
+  font-size:9px; line-height:1.6;
+  color:var(--yellow);
+  text-align:center;
+}
+
+.card-label {
+  background:var(--green);
+  padding:4px 5px 5px;
+  text-align:center;
+}
+.card-label-type {
+  font-size:7px; letter-spacing:.15em;
+  color:var(--yellow); text-transform:uppercase;
+}
+.card-label-title {
+  font-size:8px; color:var(--white);
+  font-family:'Noto Sans KR',sans-serif;
+  font-weight:300; line-height:1.3; margin-top:1px;
+}
+
+/* ── TOOLTIP ── */
+#tooltip {
+  position:fixed; max-width:240px;
+  background:var(--white);
+  border:2px solid var(--green);
+  padding:12px 14px; z-index:300;
+  pointer-events:none; opacity:0; transition:opacity .15s;
+}
+#tooltip.show { opacity:1; }
+#tt-tag { font-size:8px; letter-spacing:.2em; color:var(--teal); text-transform:uppercase; margin-bottom:3px; }
+#tt-title { font-size:13px; font-weight:700; color:var(--green); margin-bottom:2px; line-height:1.2; }
+#tt-meta { font-size:8px; color:#888; letter-spacing:.1em; margin-bottom:8px; }
+#tt-body { font-family:'Noto Sans KR',sans-serif; font-size:12px; line-height:1.8; color:#222; border-left:3px solid var(--yellow); padding-left:9px; }
+
+/* ── COMPLETE ── */
+#complete {
+  position:fixed; inset:0;
+  background:rgba(28,60,28,.92);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:14px;
+  opacity:0; pointer-events:none; transition:opacity .7s; z-index:400;
+}
+#complete.show { opacity:1; pointer-events:auto; }
+#complete h2 { font-size:clamp(26px,5vw,58px); color:var(--yellow); letter-spacing:.06em; }
+#complete p  { font-size:11px; color:var(--white); letter-spacing:.2em; opacity:.6; }
+#reset-btn {
+  margin-top:10px; background:none;
+  border:2px solid var(--yellow); color:var(--yellow);
+  font-family:'Space Mono',monospace; font-size:12px;
+  letter-spacing:.25em; padding:9px 26px; cursor:pointer;
+}
+#reset-btn:hover { background:rgba(240,226,52,.1); }
+</style>
 </head>
 <body>
-    <h1>안녕하세요! 첫 시작의 아카이브 웹사이트입니다.</h1>
-    <p>지금은 테스트 중이며, 여기에 화환 UI와 이미지들이 들어갈 예정입니다.</p>
+
+<div id="cursor"></div>
+
+<!-- ══ INTRO ══ -->
+<div id="intro">
+  <canvas id="px-canvas"></canvas>
+  <div id="intro-title">THE OPENING</div>
+  <button id="start-btn">START</button>
+</div>
+
+<!-- ══ STAGE ══ -->
+<div id="stage">
+  <div id="stage-header">
+    <h1>THE OPENING</h1>
+    <span id="stage-hint">드래그해서 화환을 완성하세요</span>
+  </div>
+
+  <div id="wreath-wrap">
+    <svg viewBox="0 0 340 620" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;overflow:visible;">
+
+      <!-- STAND LEGS -->
+      <rect x="143" y="498" width="22" height="110" rx="5" fill="#EFA89E"/>
+      <rect x="175" y="498" width="22" height="110" rx="5" fill="#EFA89E"/>
+      <rect x="122" y="596" width="65" height="13" rx="5" fill="#EFA89E"/>
+      <rect x="153" y="596" width="65" height="13" rx="5" fill="#EFA89E"/>
+      <rect x="149" y="462" width="42" height="46" rx="5" fill="#EFA89E"/>
+
+      <!-- BODY TIERS -->
+      <rect x="60"  y="330" width="220" height="140" rx="6" fill="#1C3C1C"/>
+      <rect x="80"  y="185" width="180" height="158" rx="6" fill="#1C3C1C"/>
+      <rect x="104" y="68"  width="132" height="128" rx="6" fill="#1C3C1C"/>
+
+      <!-- TIER BANDS -->
+      <rect x="55"  y="326" width="230" height="12" rx="3" fill="#EFA89E"/>
+      <rect x="76"  y="182" width="188" height="10" rx="3" fill="#EFA89E"/>
+      <rect x="100" y="65"  width="140" height="9"  rx="3" fill="#EFA89E"/>
+
+      <!-- LEAVES LEFT (lower) -->
+      <g fill="#2C5C2C" opacity=".95">
+        <ellipse cx="34"  cy="388" rx="38" ry="9"  transform="rotate(-22 34 388)"/>
+        <ellipse cx="24"  cy="362" rx="34" ry="8"  transform="rotate(-35 24 362)"/>
+        <ellipse cx="20"  cy="410" rx="32" ry="8"  transform="rotate(-10 20 410)"/>
+        <ellipse cx="30"  cy="435" rx="28" ry="7"  transform="rotate(8 30 435)"/>
+        <ellipse cx="44"  cy="450" rx="24" ry="7"  transform="rotate(20 44 450)"/>
+      </g>
+      <!-- LEAVES RIGHT (lower) -->
+      <g fill="#2C5C2C" opacity=".95">
+        <ellipse cx="306" cy="388" rx="38" ry="9"  transform="rotate(22 306 388)"/>
+        <ellipse cx="316" cy="362" rx="34" ry="8"  transform="rotate(35 316 362)"/>
+        <ellipse cx="320" cy="410" rx="32" ry="8"  transform="rotate(10 320 410)"/>
+        <ellipse cx="310" cy="435" rx="28" ry="7"  transform="rotate(-8 310 435)"/>
+        <ellipse cx="296" cy="450" rx="24" ry="7"  transform="rotate(-20 296 450)"/>
+      </g>
+
+      <!-- LEAVES LEFT (mid) -->
+      <g fill="#2C5C2C" opacity=".9">
+        <ellipse cx="52"  cy="245" rx="34" ry="8" transform="rotate(-28 52 245)"/>
+        <ellipse cx="42"  cy="222" rx="30" ry="7" transform="rotate(-42 42 222)"/>
+        <ellipse cx="48"  cy="270" rx="30" ry="7" transform="rotate(-14 48 270)"/>
+        <ellipse cx="60"  cy="292" rx="26" ry="7" transform="rotate(5 60 292)"/>
+      </g>
+      <!-- LEAVES RIGHT (mid) -->
+      <g fill="#2C5C2C" opacity=".9">
+        <ellipse cx="288" cy="245" rx="34" ry="8" transform="rotate(28 288 245)"/>
+        <ellipse cx="298" cy="222" rx="30" ry="7" transform="rotate(42 298 222)"/>
+        <ellipse cx="292" cy="270" rx="30" ry="7" transform="rotate(14 292 270)"/>
+        <ellipse cx="280" cy="292" rx="26" ry="7" transform="rotate(-5 280 292)"/>
+      </g>
+
+      <!-- LEAVES LEFT (upper) -->
+      <g fill="#2C5C2C" opacity=".85">
+        <ellipse cx="74"  cy="110" rx="28" ry="7" transform="rotate(-32 74 110)"/>
+        <ellipse cx="66"  cy="90"  rx="24" ry="6" transform="rotate(-48 66 90)"/>
+        <ellipse cx="80"  cy="130" rx="24" ry="6" transform="rotate(-16 80 130)"/>
+      </g>
+      <!-- LEAVES RIGHT (upper) -->
+      <g fill="#2C5C2C" opacity=".85">
+        <ellipse cx="266" cy="110" rx="28" ry="7" transform="rotate(32 266 110)"/>
+        <ellipse cx="274" cy="90"  rx="24" ry="6" transform="rotate(48 274 90)"/>
+        <ellipse cx="260" cy="130" rx="24" ry="6" transform="rotate(16 260 130)"/>
+      </g>
+
+      <!-- DECORATIVE DOTS -->
+      <g fill="#EFA89E" opacity=".5">
+        <circle cx="110" cy="100" r="5"/>
+        <circle cx="170" cy="80"  r="5"/>
+        <circle cx="230" cy="100" r="5"/>
+        <circle cx="100" cy="215" r="5"/>
+        <circle cx="170" cy="200" r="5"/>
+        <circle cx="240" cy="215" r="5"/>
+        <circle cx="90"  cy="370" r="5"/>
+        <circle cx="170" cy="355" r="5"/>
+        <circle cx="250" cy="370" r="5"/>
+      </g>
+
+      <!-- TOP BOW -->
+      <ellipse cx="148" cy="50" rx="42" ry="20" fill="#EFA89E" transform="rotate(-30 148 50)"/>
+      <ellipse cx="192" cy="50" rx="42" ry="20" fill="#EFA89E" transform="rotate(30 192 50)"/>
+      <ellipse cx="170" cy="52" rx="18" ry="13" fill="#D4726A"/>
+      <path d="M160 62 Q148 88 140 108" stroke="#EFA89E" stroke-width="12" stroke-linecap="round" fill="none"/>
+      <path d="M180 62 Q192 88 200 108" stroke="#EFA89E" stroke-width="12" stroke-linecap="round" fill="none"/>
+
+      <!-- RIBBON STRIPS -->
+      <rect x="57"  y="76" width="18" height="400" rx="3" fill="#EFA89E" opacity=".85"/>
+      <rect x="265" y="76" width="18" height="400" rx="3" fill="#EFA89E" opacity=".85"/>
+
+    </svg>
+  </div>
+
+  <div id="snap-layer"></div>
+  <div id="card-layer"></div>
+  <div id="stage-progress">0 / 8 복원됨</div>
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip">
+  <div id="tt-tag"></div>
+  <div id="tt-title"></div>
+  <div id="tt-meta"></div>
+  <div id="tt-body"></div>
+</div>
+
+<!-- Complete -->
+<div id="complete">
+  <h2>화환 완성!</h2>
+  <p>THE OPENING — ALL 8 ARCHIVED</p>
+  <button id="reset-btn" onclick="location.reload()">다시 시작</button>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   ARCHIVE DATA
+   👉 이미지 교체: imgSrc에 URL 또는 './img/파일명' 입력
+   👉 책/노래: imgSrc: null 이면 자동으로 텍스트 카드
+════════════════════════════════════════ */
+const ITEMS = [
+  {
+    type: '영화', icon: '🎬',
+    title: '2001:\n스페이스 오디세이',
+    meta: '1968 · Stanley Kubrick',
+    desc: '검은 화면, 완전한 침묵. 태양이 달의 지평선 너머로 서서히 떠오른다. 우주는 소리 없이 시작된다.',
+    imgSrc: null,   // 👉 여기에 이미지 URL 입력
+    imgAlt: '2001: A Space Odyssey opening scene'
+  },
+  {
+    type: '영화', icon: '🎬',
+    title: '멀홀랜드\n드라이브',
+    meta: '2001 · David Lynch',
+    desc: '번쩍이는 조명 아래 지터버그 댄서들. 금발 여자가 카메라를 향해 미소 짓는다.',
+    imgSrc: null,
+    imgAlt: 'Mulholland Drive opening scene'
+  },
+  {
+    type: '게임', icon: '🕹️',
+    title: 'The Last\nof Us',
+    meta: '2013 · Naughty Dog',
+    desc: '새벽 3시. 조엘은 사라를 안고 달린다. 도시가 불타고 있다.',
+    imgSrc: null,
+    imgAlt: 'The Last of Us opening'
+  },
+  {
+    type: '게임', icon: '🕹️',
+    title: 'NieR:\nAutomata',
+    meta: '2017 · PlatinumGames',
+    desc: '전투기에서 뛰어내리는 2B. 폐허가 된 지구. 전쟁은 아직 끝나지 않았다.',
+    imgSrc: null,
+    imgAlt: 'NieR Automata opening'
+  },
+  {
+    type: '책', icon: '📖',
+    title: '파친코',
+    meta: 'Min Jin Lee · 2017',
+    desc: '역사가 우리를 망쳐놨지만, 그래도 상관없다.',
+    imgSrc: null,
+    quote: '역사가 우리를 망쳐놨지만, 그래도 상관없다.'
+  },
+  {
+    type: '책', icon: '📖',
+    title: '이방인',
+    meta: 'Albert Camus · 1942',
+    desc: '오늘 엄마가 죽었다. 아니 어쩌면 어제.',
+    imgSrc: null,
+    quote: '오늘 엄마가 죽었다. 아니 어쩌면 어제.'
+  },
+  {
+    type: '노래', icon: '🎵',
+    title: 'Clair de\nLune',
+    meta: 'Debussy · 1905',
+    desc: '피아노의 첫 세 음이 공기를 물들인다. 달빛이 수면 위로 번지듯.',
+    imgSrc: null,
+    quote: '♩ 달빛이 수면 위로 번지듯, 소리가 방 안을 천천히 채운다.'
+  },
+  {
+    type: '노래', icon: '🎵',
+    title: 'A Change\nIs Gonna Come',
+    meta: 'Sam Cooke · 1964',
+    desc: '나는 강 근처의 작은 마을에서 태어났다. 변화가 올 것이라는 걸 안다.',
+    imgSrc: null,
+    quote: "♩ I was born by the river in a little tent, and just like the river I've been running ever since."
+  },
+];
+
+/* ════════════════════════════
+   CURSOR
+════════════════════════════ */
+const cursorEl = document.getElementById('cursor');
+let mx=0, my=0;
+document.addEventListener('mousemove', e => {
+  mx=e.clientX; my=e.clientY;
+  cursorEl.style.left=mx+'px';
+  cursorEl.style.top=my+'px';
+  if(dragging) onDragMove(e);
+  posTooltip();
+});
+
+/* ════════════════════════════
+   INTRO — PIXEL ANIMATION
+════════════════════════════ */
+const introEl  = document.getElementById('intro');
+const canvas   = document.getElementById('px-canvas');
+const ctx2d    = canvas.getContext('2d');
+const startBtn = document.getElementById('start-btn');
+const PSIZ = 13;
+let W=0, H=0;
+let tPx=[], bPx=[];
+let iPhase='intro', iStart=null, eStart=null, iDone=false;
+let floatId;
+let bx=0, by=0, bvx=0, bvy=0;
+
+function rcv(){ W=canvas.width=innerWidth; H=canvas.height=innerHeight; }
+rcv(); addEventListener('resize', rcv);
+
+function sampleTitle(){
+  const off=document.createElement('canvas');
+  off.width=W; off.height=H;
+  const oc=off.getContext('2d');
+  const fs=Math.min(W*.085,106);
+  oc.font=`700 ${fs}px "Space Mono",monospace`;
+  oc.fillStyle='#000'; oc.textAlign='center'; oc.textBaseline='middle';
+  oc.fillText('THE OPENING',W/2,H/2);
+  const d=oc.getImageData(0,0,W,H).data;
+  const C=Math.ceil(W/PSIZ), R=Math.ceil(H/PSIZ);
+  const p=[];
+  for(let r=0;r<R;r++) for(let c=0;c<C;c++){
+    const i=(r*PSIZ+Math.floor(PSIZ/2))*W+(c*PSIZ+Math.floor(PSIZ/2));
+    if(d[i*4+3]>60) p.push({cx:c*PSIZ+PSIZ/2,cy:r*PSIZ+PSIZ/2,a:0,dl:Math.random()*1700,sp:.4+Math.random()*.6});
+  }
+  return p;
+}
+
+function sampleBg(t){
+  const K=new Set(t.map(p=>`${Math.floor(p.cx/PSIZ)},${Math.floor(p.cy/PSIZ)}`));
+  const C=Math.ceil(W/PSIZ), R=Math.ceil(H/PSIZ);
+  const p=[];
+  for(let r=0;r<R;r++) for(let c=0;c<C;c++){
+    if(!K.has(`${c},${r}`)) p.push({cx:c*PSIZ+PSIZ/2,cy:r*PSIZ+PSIZ/2,a:0,dl:Math.random()*2000,sp:.3+Math.random()*.5});
+  }
+  return p;
+}
+
+function raf(ts){
+  if(!iStart) iStart=ts;
+  const t=ts-iStart;
+  ctx2d.clearRect(0,0,W,H);
+  if(iPhase==='intro'){
+    for(const p of tPx){
+      if(t>p.dl) p.a=Math.min(1,p.a+p.sp*.018);
+      ctx2d.globalAlpha=p.a;
+      ctx2d.fillStyle='#F0E234';
+      ctx2d.fillRect(p.cx-PSIZ/2,p.cy-PSIZ/2,PSIZ-1,PSIZ-1);
+    }
+    if(t>2400&&!iDone){ iDone=true; startBtn.classList.add('show'); floatBtn(); }
+  } else if(iPhase==='expand'){
+    if(!eStart) eStart=ts;
+    const ex=ts-eStart;
+    for(const p of tPx){
+      ctx2d.globalAlpha=p.a; ctx2d.fillStyle='#F0E234';
+      ctx2d.fillRect(p.cx-PSIZ/2,p.cy-PSIZ/2,PSIZ-1,PSIZ-1);
+    }
+    for(const p of bPx){
+      if(ex>p.dl*.35) p.a=Math.min(1,p.a+p.sp*.016);
+      if(p.a>0){ ctx2d.globalAlpha=p.a; ctx2d.fillStyle='#F0E234'; ctx2d.fillRect(p.cx-PSIZ/2,p.cy-PSIZ/2,PSIZ-1,PSIZ-1); }
+    }
+    if(ex>600) document.getElementById('stage').classList.add('show');
+    if(ex>1300){
+      const f=Math.max(0,1-(ex-1300)/500);
+      introEl.style.opacity=f;
+      if(f===0){ introEl.style.display='none'; iPhase='done'; launchStage(); return; }
+    }
+  }
+  ctx2d.globalAlpha=1;
+  if(iPhase!=='done') requestAnimationFrame(raf);
+}
+
+function floatBtn(){
+  bx=W/2; by=H*.62;
+  bvx=(Math.random()-.5)*.8; bvy=(Math.random()-.5)*.8;
+  movBtn();
+}
+function movBtn(){
+  const bW=startBtn.offsetWidth||120, bH=startBtn.offsetHeight||40;
+  bx+=bvx; by+=bvy;
+  if(bx<bW/2||bx>W-bW/2) bvx*=-1;
+  if(by<bH/2||by>H-bH/2) bvy*=-1;
+  startBtn.style.left=bx+'px'; startBtn.style.top=by+'px';
+  startBtn.style.transform='translate(-50%,-50%)';
+  if(!startBtn.classList.contains('gone')) floatId=requestAnimationFrame(movBtn);
+}
+startBtn.addEventListener('click',()=>{
+  startBtn.classList.add('gone');
+  cancelAnimationFrame(floatId);
+  iPhase='expand';
+});
+
+/* ════════════════════════════
+   SNAP POSITIONS (SVG coords)
+   upper tier: x104 y68  w132 h128
+   mid tier:   x80  y185 w180 h158
+   lower tier: x60  y330 w220 h140
+════════════════════════════ */
+const SNAP_SVG = [
+  { x:136, y:120 },  // upper left
+  { x:204, y:120 },  // upper right
+  { x:112, y:250 },  // mid left
+  { x:170, y:250 },  // mid center
+  { x:228, y:250 },  // mid right
+  { x:110, y:390 },  // lower left
+  { x:170, y:390 },  // lower center
+  { x:230, y:390 },  // lower right
+];
+const SVG_W=340, SVG_H=620;
+
+function svgToScreen(sx, sy){
+  const wrap=document.getElementById('wreath-wrap');
+  const r=wrap.getBoundingClientRect();
+  const scX=r.width/SVG_W, scY=r.height/SVG_H;
+  return { x: r.left+sx*scX, y: r.top+sy*scY };
+}
+
+let zones=[], cardObjs=[];
+let snapped=0;
+let dragging=null, dOX=0, dOY=0;
+
+function launchStage(){
+  const sL=document.getElementById('snap-layer');
+  const cL=document.getElementById('card-layer');
+
+  ITEMS.forEach((item,i)=>{
+    const sp=svgToScreen(SNAP_SVG[i].x, SNAP_SVG[i].y);
+
+    const dot=document.createElement('div');
+    dot.className='snap-dot';
+    dot.style.left=sp.x+'px';
+    dot.style.top=sp.y+'px';
+    sL.appendChild(dot);
+    zones.push({el:dot, x:sp.x, y:sp.y, filled:false});
+
+    const card=document.createElement('div');
+    card.className='card';
+    card.innerHTML=buildCardHTML(item);
+    card.style.left=(sp.x-50)+'px';
+    card.style.top =(sp.y-50)+'px';
+    card.style.transform=`rotate(${(Math.random()-.5)*18}deg)`;
+    cL.appendChild(card);
+
+    const co={el:card, item, x:sp.x-50, y:sp.y-50, snapped:false};
+    cardObjs.push(co);
+
+    setTimeout(()=>scatterCard(co,i), 500+i*80);
+    card.addEventListener('mousedown', e=>onDragStart(e,co));
+  });
+  updateProg();
+}
+
+function buildCardHTML(item){
+  const hasSrc = item.imgSrc && item.imgSrc.trim()!=='';
+  const hasQuote = item.quote;
+  let content='';
+  if(hasSrc){
+    content=`<div class="card-img-wrap"><img src="${item.imgSrc}" alt="${item.imgAlt||''}" draggable="false"></div>`;
+  } else if(hasQuote){
+    content=`<div class="card-text-wrap"><div class="card-text-quote">${item.quote}</div></div>`;
+  } else {
+    content=`<div class="card-img-wrap"><div class="card-placeholder">${item.icon}</div></div>`;
+  }
+  const lines=item.title.split('\n');
+  return `<div class="card-ribbon"></div>
+    ${content}
+    <div class="card-label">
+      <div class="card-label-type">${item.type}</div>
+      <div class="card-label-title">${lines.join('<br>')}</div>
+    </div>`;
+}
+
+function scatterCard(co,i){
+  const mg=110, sw=innerWidth, sh=innerHeight;
+  let tx, ty, t=0;
+  const wrap=document.getElementById('wreath-wrap').getBoundingClientRect();
+  do {
+    tx=mg+Math.random()*(sw-mg*2);
+    ty=mg+Math.random()*(sh-mg*2);
+    t++;
+  } while(t<40 && tx>wrap.left-60 && tx<wrap.right+60 && ty>wrap.top-60 && ty<wrap.bottom+60);
+  const delay=i*60;
+  co.el.style.transition=`left .75s cubic-bezier(.22,1,.36,1) ${delay}ms, top .75s cubic-bezier(.22,1,.36,1) ${delay}ms, transform .75s ${delay}ms`;
+  co.el.style.left=tx+'px';
+  co.el.style.top=ty+'px';
+  co.el.style.transform=`rotate(${(Math.random()-.5)*32}deg)`;
+  co.x=tx; co.y=ty;
+}
+
+/* ── DRAG ── */
+function onDragStart(e,co){
+  if(co.snapped) return;
+  e.preventDefault();
+  dragging=co; dOX=e.clientX-co.x; dOY=e.clientY-co.y;
+  co.el.classList.add('dragging');
+  co.el.style.transition='none';
+  co.el.style.zIndex=200;
+  document.body.classList.add('grabbing');
+  showTip(co.item);
+}
+
+function onDragMove(e){
+  if(!dragging) return;
+  const nx=e.clientX-dOX, ny=e.clientY-dOY;
+  dragging.x=nx; dragging.y=ny;
+  dragging.el.style.left=nx+'px';
+  dragging.el.style.top=ny+'px';
+  const cx=nx+50, cy=ny+50;
+  zones.forEach(z=>{
+    if(z.filled) return;
+    z.el.classList.toggle('near', Math.hypot(z.x-cx,z.y-cy)<55);
+  });
+}
+
+document.addEventListener('mouseup',()=>{
+  if(!dragging) return;
+  document.body.classList.remove('grabbing');
+  hideTip();
+  dragging.el.classList.remove('dragging');
+  zones.forEach(z=>z.el.classList.remove('near'));
+
+  const cx=dragging.x+50, cy=dragging.y+50;
+  let best=null, bestD=60;
+  zones.forEach(z=>{
+    if(z.filled) return;
+    const d=Math.hypot(z.x-cx,z.y-cy);
+    if(d<bestD){ bestD=d; best=z; }
+  });
+
+  if(best){
+    best.filled=true; best.el.classList.add('filled');
+    dragging.snapped=true;
+    dragging.el.classList.add('snapped');
+    dragging.el.style.transition='left .4s cubic-bezier(.22,1,.36,1), top .4s cubic-bezier(.22,1,.36,1), transform .35s';
+    dragging.el.style.left=(best.x-50)+'px';
+    dragging.el.style.top =(best.y-50)+'px';
+    dragging.el.style.transform='rotate(0deg)';
+    dragging.el.style.zIndex=10;
+    snapped++;
+    updateProg();
+    if(snapped>=ITEMS.length) setTimeout(()=>document.getElementById('complete').classList.add('show'),700);
+  } else {
+    dragging.el.style.zIndex=20;
+  }
+  dragging=null;
+});
+
+/* ── TOOLTIP ── */
+const tip=document.getElementById('tooltip');
+function showTip(item){
+  document.getElementById('tt-tag').textContent=item.type;
+  document.getElementById('tt-title').textContent=item.title.replace(/\n/g,' ');
+  document.getElementById('tt-meta').textContent=item.meta;
+  document.getElementById('tt-body').textContent=item.desc;
+  tip.classList.add('show'); posTooltip();
+}
+function hideTip(){ tip.classList.remove('show'); }
+function posTooltip(){
+  if(!tip.classList.contains('show')) return;
+  const tw=tip.offsetWidth||240, th=tip.offsetHeight||110;
+  let tx=mx+22, ty=my-th/2;
+  if(tx+tw>innerWidth-10) tx=mx-tw-22;
+  if(ty<10) ty=10;
+  if(ty+th>innerHeight-10) ty=innerHeight-th-10;
+  tip.style.left=tx+'px'; tip.style.top=ty+'px';
+}
+
+function updateProg(){
+  document.getElementById('stage-progress').textContent=`${snapped} / ${ITEMS.length} 복원됨`;
+}
+
+/* ── BOOT ── */
+document.fonts.ready.then(()=>{
+  tPx=sampleTitle(); bPx=sampleBg(tPx);
+  requestAnimationFrame(raf);
+});
+</script>
 </body>
 </html>
